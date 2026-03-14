@@ -898,7 +898,7 @@ function exitAppSafely(){
 }
 
 // ==================== DATA & STATE ====================
-let mainDB = JSON.parse(localStorage.getItem('alfaza_v14_6')) || {
+let mainDB = JSON.parse(localStorage.getItem('alfaza_v14_7')) || {
     "KASIR 01": { bank:0, cash:0, tarik:0, aks:0, admin:0, loginTime: "", tr:[], ts:[] },
     "KASIR 02": { bank:0, cash:0, tarik:0, aks:0, admin:0, loginTime: "", tr:[], ts:[] }
 };
@@ -1190,8 +1190,8 @@ function hitungLaporan() {
     
     // Ambil semua history Saldo Real App untuk hari ini
     const saldoRealHistory = fTs.filter(x => x.jenis === 'Saldo Real App');
-    // Saldo Real App terakhir
-    let saldoRealTerakhir = saldoRealHistory.length > 0 ? saldoRealHistory[0].nom : 0;
+    // Hitung TOTAL seluruh nominal Saldo Real App (bukan hanya yang terakhir)
+    let totalSaldoReal = saldoRealHistory.reduce((sum, item) => sum + item.nom, 0);
 
     // Buat HTML untuk history saldo real
     let saldoRealHistoryHtml = '';
@@ -1205,6 +1205,13 @@ function hitungLaporan() {
                 </div>
             `;
         });
+        // Tambahkan total di akhir
+        saldoRealHistoryHtml += `
+            <div style="display:flex; justify-content:space-between; margin-top:6px; padding-top:4px; border-top:1px solid var(--primary); font-weight:700; color:var(--primary);">
+                <span>TOTAL SALDO REAL:</span>
+                <span>Rp ${fmtN(totalSaldoReal)}</span>
+            </div>
+        `;
         saldoRealHistoryHtml += '</div>';
     }
 
@@ -1246,7 +1253,7 @@ function hitungLaporan() {
                 </div>
             </div>
             
-            <!-- PERBANDINGAN SALDO BANK dengan HISTORY -->
+            <!-- PERBANDINGAN SALDO BANK dengan TOTAL SALDO REAL -->
             <div style="margin-top:15px; padding:10px; background:#f8f9ff; border-radius:12px; border:1.5px solid #dde4f5;">
                 <div style="font-weight:800; color:var(--primary); margin-bottom:8px; font-size:12px;">
                     <i class="fa-solid fa-scale-balanced"></i> CEK KESESUAIAN SALDO BANK
@@ -1256,12 +1263,12 @@ function hitungLaporan() {
                     <span class="comparison-value">Rp ${fmtN(db.bank)}</span>
                 </div>
                 <div class="comparison-item">
-                    <span class="comparison-label">💰 Saldo Real Aplikasi (Bank):</span>
-                    <span class="comparison-value">Rp ${fmtN(saldoRealTerakhir)}</span>
+                    <span class="comparison-label">💰 TOTAL Saldo Real Aplikasi:</span>
+                    <span class="comparison-value">Rp ${fmtN(totalSaldoReal)}</span>
                 </div>
                 <div class="comparison-diff">
-                    ${db.bank !== saldoRealTerakhir ? 
-                        `⚠️ Selisih: Rp ${fmtN(Math.abs(db.bank - saldoRealTerakhir))} (${db.bank > saldoRealTerakhir ? 'Lebih catatan' : 'Kurang catatan'})` : 
+                    ${db.bank !== totalSaldoReal ? 
+                        `⚠️ Selisih: Rp ${fmtN(Math.abs(db.bank - totalSaldoReal))} (${db.bank > totalSaldoReal ? 'Lebih catatan' : 'Kurang catatan'})` : 
                         '✅ Sesuai'}
                 </div>
             </div>
@@ -1298,7 +1305,8 @@ async function shareLaporanTeks() {
     let sisaCashTotal = db.cash + totalAdmin + sAks;
     
     const saldoRealHistory = fTs.filter(x => x.jenis === 'Saldo Real App');
-    let saldoRealTerakhir = saldoRealHistory.length > 0 ? saldoRealHistory[0].nom : 0;
+    // Hitung TOTAL Saldo Real (bukan hanya yang terakhir)
+    let totalSaldoReal = saldoRealHistory.reduce((sum, item) => sum + item.nom, 0);
 
     let tglFmt = tgl;
     try {
@@ -1333,11 +1341,11 @@ ${'─'.repeat(32)}
 💰 *SISA CASH TOTAL : Rp ${fmtN(sisaCashTotal)}*
 (Sisa Cash Penjualan + Admin + Aksesoris)
 
-⚖️ *CEK SALDO BANK*
+⚖️ *CEK KESESUAIAN SALDO BANK*
 • Saldo Bank Catatan : Rp ${fmtN(db.bank)}
-• Saldo Real Aplikasi : Rp ${fmtN(saldoRealTerakhir)}
-• ${db.bank !== saldoRealTerakhir ? 
-    `⚠️ Selisih: Rp ${fmtN(Math.abs(db.bank - saldoRealTerakhir))} (${db.bank > saldoRealTerakhir ? 'Lebih catatan' : 'Kurang catatan'})` : 
+• TOTAL Saldo Real Aplikasi : Rp ${fmtN(totalSaldoReal)}
+• ${db.bank !== totalSaldoReal ? 
+    `⚠️ Selisih: Rp ${fmtN(Math.abs(db.bank - totalSaldoReal))} (${db.bank > totalSaldoReal ? 'Lebih catatan' : 'Kurang catatan'})` : 
     '✅ Sesuai'}
 
 ${'─'.repeat(32)}`;
@@ -1348,6 +1356,7 @@ ${'─'.repeat(32)}`;
         saldoRealHistory.forEach((item, i) => {
             teks += `${i+1}. ${item.jam} - Rp ${fmtN(item.nom)} ${item.ket ? '(' + item.ket + ')' : ''}\n`;
         });
+        teks += `   *TOTAL: Rp ${fmtN(totalSaldoReal)}*\n`;
     }
 
     teks += `\n${'─'.repeat(32)}
@@ -1396,7 +1405,7 @@ function refresh() {
     document.getElementById('s-tarik').innerText = fmtN(db.tarik);
     document.getElementById('s-aks').innerText = fmtN(db.aks);
     document.getElementById('s-admin').innerText = fmtN(db.admin);
-    localStorage.setItem('alfaza_v14_6', JSON.stringify(mainDB));
+    localStorage.setItem('alfaza_v14_7', JSON.stringify(mainDB));
 }
 
 // ==================== RESET ====================
@@ -1407,7 +1416,7 @@ async function resetSaldo() {
             mainDB[k].bank = 0; mainDB[k].cash = 0;
             mainDB[k].tarik = 0; mainDB[k].aks = 0; mainDB[k].admin = 0;
         });
-        localStorage.setItem('alfaza_v14_6', JSON.stringify(mainDB));
+        localStorage.setItem('alfaza_v14_7', JSON.stringify(mainDB));
         refresh();
         await gsAlert('Saldo telah direset ke 0', '✅ Berhasil');
     }
